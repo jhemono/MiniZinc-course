@@ -37,13 +37,13 @@ constraint forall (t in 1..t-1) ( gang[order[t]] in followable[gang[order[t+1]]]
 constraint forall (g in Gang)
   ( let { Student: l = leader[g]; } in
     if rivals[g] != {}
-    then let { var int: earliestRival = min([ latest[rival] | rival in rivals[g] ]);
+    then let {  var int: earliestRival     = min([ latest[rival] | rival in rivals[g] ]);
                var bool: rivalBeforeLeader = passage[l] > earliestRival; } in
          points[l] = if rivalBeforeLeader \/ passage[l] < t div 2
                      then 3
                      else 0 endif /\
          forall (f in Student where gang[f] = g /\ f != l)
-         ( points[f] = if passage[f] > passage[l]
+         ( points[f] = if passage[l] < passage[f]
                        then if rivalBeforeLeader
                             then 2 else 0 endif
                        else 1 endif )
@@ -51,7 +51,7 @@ constraint forall (g in Gang)
                      then 3
                      else 0 endif /\
          forall (f in Student where gang[f] = g /\ f != l)
-         ( points[f] = if passage[f] > passage[l]
+         ( points[f] = if passage[l] < passage[f]
                        then 0
                        else 1 endif )
     endif );
