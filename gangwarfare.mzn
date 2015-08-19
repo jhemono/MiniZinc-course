@@ -18,25 +18,38 @@ include "globals.mzn";
 
 array [Student] of Gang: gang = [ g | g in Gang, c in 1..m[g] ];
 array [Gang] of Student: leader = [ sum (pg in Gang) ( if pg < g then m[pg] else 0 endif ) + 1 | g in Gang ];
+array [Gang] of set of Gang: rivals =
+    [ { g2[k] | k in Rival where g1[k] = g } union { g1[k] | k in Rival where g2[k] = g } | g in Gang ];
+array [Gang] of set of Gang: followable = [ Gang diff ({g} union rivals[g]) | g in Gang ];
 
 %%%%%%%
 
 array [Time] of var Student: order;
 array [Student] of var Time: passage;
-array [Student] of var {0,1,3}: points;
+int: maxpoints = 3+2*(max(m)-1);
+array [Student] of var {0,1} union 3..maxpoints: points;
 
 %%%%%%%
 
 constraint inverse(order, passage);
 
-constraint forall (t in 1..t-1) ( gang[order[t]] != gang[order[t+1]] );
+constraint forall (t in 1..t-1) ( gang[order[t]] in followable[gang[order[t+1]]] );
 
 constraint forall (s in Student)
            ( points[s] =
                if s = leader[gang[s]]
-               then if passage[s] < t div 2
-                    then 3
-                    else 0 endif
+               then if card(rivals[gang[s]]) > 0
+                    then let { var int: earliestRival = min([ latest[rival] | rival in rivals[gang[s]] ]); } in
+                         if earliestRival < passage[s]
+                         then if m[gang[s]] > 1
+                              then 3 + 2 * (sum (f in Student where gang[f] = gang[s] /\ f != s) (passage[f] > passage[s]))
+                              else 3 endif
+                         elseif passage[s] < t div 2
+                         then 3
+                         else 0 endif
+                    else if passage[s] < t div 2
+                         then 3
+                         else 0 endif endif
                else if passage[s] > passage[leader[gang[s]]]
                     then 0
                     else 1 endif endif );
@@ -45,21 +58,44 @@ constraint obj = sum(points);
 
 %%%%%%%
 
-solve ::seq_search([
-                    int_search([ points[l] | l in leader ], first_fail, indomain_max, complete),
-                    %int_search([ passage[l] | l in leader ], first_fail, indomain_min, complete),
-                    %int_search(order, first_fail, indomain_max, complete)
-                   ])
+array [Gang] of var Time: latest;
+
+%%%%%%%
+
+constraint forall (g in Gang)
+           ( maximum(latest[g], [ passage[s] | s in Student where gang[s] = g ]) );
+
+%%%%%%%
+
+constraint forall (g in Gang where m[g] > 2)
+           ( increasing([ passage[s] | s in Student where gang[s] = g /\ s != leader[g] ]) );
+
+%%%%%%%
+
+solve
+                    % :: int_search([ points[l] | l in leader ], first_fail, indomain_max, complete),
+                    % :: int_search([ passage[l] | l in leader ], first_fail, indomain_min, complete),
+                    % :: int_search(order, first_fail, indomain_max, complete)
+                    % :: int_search(points, dom_w_deg, indomain_max, complete) % actually good maybe combine with bast on other var ?
+                     :: seq_search([
+                          int_search(points, dom_w_deg, indomain_max, complete)
+                         %,int_search(order, dom_w_deg, indomain_median, complete)
+                         %,int_search(order, first_fail, indomain_reverse_split, complete)
+                         %,int_search(order, first_fail, indomain_min, complete)
+                         % int_search(points, largest, indomain_max, complete)
+                         ,int_search(order, first_fail, indomain_split, complete)
+                                   ])
+
 maximize obj;
 
 
 output ["order = ",show(order),
-	";\nobj = ", show(obj),
-%   ";\ngang= ", show(gang),
-%   ";\nlead= ", show(leader),
-%   ";\ntime= ", show(passage),
-%   ";\npoin= ", show(points),
-	";\n" ];
+   ";\n  obj = ", show(obj),
+%  ";\ngang= ", show(gang),
+%  ";\nlead= ", show(leader),
+%  ";\ntime= ", show(passage),
+%  ";\npoin= ", show(points),
+     ";\n" ];
 
 
 
