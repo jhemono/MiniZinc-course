@@ -32,7 +32,11 @@ array [Student] of var 0..3: points;
 
 constraint inverse(order, passage);
 
-constraint forall (t in 1..t-1) ( gang[order[t]] in followable[gang[order[t+1]]] );
+constraint forall (t in 2..t-1 where t mod 2 = 0) 
+           ( let {var set of Gang: follow = followable[gang[order[t]]]; } in
+             gang[order[t-1]] in follow /\ gang[order[t+1]] in follow );
+
+constraint gang[order[t]] in followable[gang[order[t-1]]];
 
 constraint forall (g in Gang)
   ( let { Student: l = leader[g]; } in
@@ -76,14 +80,14 @@ constraint forall (g in Gang where m[g] > 2)
 
 solve
  :: seq_search([
-% int_search(points, dom_w_deg, indomain_max, complete)
-% int_search(points,input_order,indomain_max,complete)
-% Makes 29_44 find a 187 solution
-int_search(points, dom_w_deg, indomain_max, complete),
-int_search(order, dom_w_deg, indomain_min, complete)
+% Makes 29_44 find a 187 solution and all searches perform reasonably
+ int_search(points, dom_w_deg, indomain_max, complete),
+ int_search(order, dom_w_deg, indomain_min, complete)
 % List of variable sets :
 % Points of leaders
 % Points of followers
+% The last problem for which no solution is found : 31_41
+%:: int_search(order, dom_w_deg, indomain_min, complete)
                ])
 
  maximize obj;
@@ -91,7 +95,7 @@ int_search(order, dom_w_deg, indomain_min, complete)
 
 
 output ["order = ",show(order),
-   ";\n  obj = ", show(obj),
+     ";\n  obj = ", show(obj),
 %    ";\ngang= ", show(gang),
 %    ";\nlead= ", show(leader),
 %    ";\ntime= ", show(fix(passage)),
