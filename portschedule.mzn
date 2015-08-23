@@ -82,10 +82,10 @@ constraint forall (s in STOCKPILE)
 constraint forall (s in STOCKPILE)
   ( endstack[s] + reclaim_duration[s] <= maxtime );
 
-%%%%%% Stage B
+%%%%%% Stage B % Replaced by Stage D
 
-constraint forall (r in RECLAIMER)
-  ( cumulative(reclaim, reclaim_duration, [ bool2int(which[s] = r) | s in STOCKPILE ], 1) );
+% constraint forall (r in RECLAIMER)
+%   ( cumulative(reclaim, reclaim_duration, [ bool2int(which[s] = r) | s in STOCKPILE ], 1) );
 
 %%%%%% Stage C
 
@@ -98,7 +98,31 @@ constraint forall (sh in SHIP)
                [ 1 | s in STOCKPILE where ship[s] = sh],
                1) );
 
-%%%%%%
+%%%%%% Stage D
+
+set of int: STOCKE = 1..ns+nr;
+array [STOCKE] of var STOCKE: next;
+array [STOCKE] of var RECLAIMER: whiche;
+array [STOCKE] of var TIME: reclaime;
+array [STOCKE] of var POSITION: westende;
+
+
+constraint forall (s in STOCKPILE)
+  ( reclaime[s] = reclaim[s] /\ westende[s] = westend[s] );
+
+constraint alldifferent(next);
+
+constraint forall (s in STOCKPILE)
+  ( whiche[s] = whiche[next[s]] );
+
+constraint forall (r in RECLAIMER)
+  ( whiche[ns + r] = r );
+
+constraint forall (s in STOCKPILE)
+  ( which[s] = whiche[s] );
+
+constraint forall (s in STOCKPILE)
+  ( reclaime[next[s]] >= finished[s] + (abs(westende[next[s]] - westende[s]) * reclaim_speed) );
 
 %%%%%%
 
