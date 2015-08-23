@@ -38,30 +38,82 @@ include "globals.mzn";
 
 %%%%%%
 
-array [STOCKPILE] of var TIME: onPad;
-array [STOCKPILE] of var TIME: finished = [ stack[s] + onPad[s] | s in STOCKPILE ];
-array [STOCKPILE] of var TIME: endstack = [ stack[s] + (stack_time * size[s]) | s in STOCKPILE ];
+array [STOCKPILE] of var TIME: duration;
+array [STOCKPILE] of var TIME: finished;
+array [STOCKPILE] of var TIME: endstack;
 array [STOCKPILE] of var POSITION: eastend = [ westend[s] + size[s] | s in STOCKPILE ];
 
 %%%%%%
 
-constraint forall (s in STOCKPILE)
-           ( onPad[s] >= size[s] * (stack_time + reclaim_time) );
+array [STOCKPILE] of TIME: reclaim_duration = [size[s] * reclaim_time | s in STOCKPILE];
+array [STOCKPILE] of TIME: stack_duration = [ size[s] * stack_time | s in STOCKPILE];
+array [STOCKPILE] of TIME: min_duration = [ reclaim_duration[s] + stack_duration[s] | s in STOCKPILE ];
+
+%%%%%% Stage A
 
 constraint forall (s in STOCKPILE)
-           ( reclaim[s] = stack[s] + onPad[s] - (reclaim_time * size[s]) );
+           ( stack[s] + stack_duration[s] = endstack[s] );
 
-constraint diffn(westend, stack, size, onPad);
+constraint forall (s in STOCKPILE)
+           ( endstack[s] <= reclaim[s] );
+
+constraint forall (s in STOCKPILE)
+           ( reclaim[s] + reclaim_duration[s] = finished[s] );
+
+constraint forall (s in STOCKPILE)
+           ( stack[s] + duration[s] = finished[s] );
+
+constraint diffn(westend, stack, size, duration);
 
 %%%%%%
 
-constraint forall (r in RECLAIMER) ( disjunctive(, [size[s] * reclaim_time | s in STOCKPILE]) );
+constraint forall (s in STOCKPILE)
+  ( westend[s] + size[s] <= len);
+
+constraint forall (s in STOCKPILE)
+  ( stack[s] + min_duration[s] <= maxtime );
+
+constraint forall (s in STOCKPILE)
+  ( reclaim[s] + reclaim_duration[s] <= maxtime );
+
+constraint forall (s in STOCKPILE)
+  ( min_duration[s] <= finished[s] );
+
+constraint forall (s in STOCKPILE)
+  ( endstack[s] + reclaim_duration[s] <= maxtime );
+
+%%%%%% Stage B
+
+constraint forall (r in RECLAIMER)
+  ( cumulative(reclaim, reclaim_duration, [ bool2int(which[s] = r) | s in STOCKPILE ], 1) );
+
+%%%%%% Stage C
+
+constraint forall (s in STOCKPILE)
+  ( reclaim[s] >= arrival[ship[s]] );
+
+constraint forall (sh in SHIP)
+  ( cumulative([ reclaim[s] | s in STOCKPILE where ship[s] = sh ],
+               [ reclaim_duration[s] | s in STOCKPILE where ship[s] = sh ],
+               [ 1 | s in STOCKPILE where ship[s] = sh],
+               1) );
 
 %%%%%%
 
 %%%%%%
 
-solve satisfy;
+var TIME: makespan = max(finished);
+
+%%%%%%
+
+% solve 
+% :: seq_search([
+%     int_search([makespan], input_order, indomain_min, complete),
+%    int_search(stack, dom_w_deg, indomain_max, complete),
+% ]) minimize makespan;
+
+solve
+:: int_search([ reclaim[s] - endstack[s] | s in STOCKPILE ], input_order, indomain_min, complete) minimize makespan;
 
 %%%%%%
 
