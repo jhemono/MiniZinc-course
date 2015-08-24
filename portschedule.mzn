@@ -124,9 +124,14 @@ constraint forall (s in STOCKPILE)
 constraint forall (s in STOCKPILE)
   ( reclaime[next[s]] >= finished[s] + (abs(westende[next[s]] - westende[s]) * reclaim_speed) );
 
-%%%%%%
+%%%%%% Stage E
 
-var TIME: makespan = max(finished);
+array [SHIP] of var TIME: berth_time;
+
+constraint forall (sh in SHIP)
+  ( arrival[sh] + berth_time[sh] = max(s in STOCKPILE where ship[s] = sh) ( finished[s] ) );
+
+var int: obj = sum(berth_time);
 
 %%%%%%
 
@@ -137,7 +142,7 @@ var TIME: makespan = max(finished);
 % ]) minimize makespan;
 
 solve
-:: int_search([ reclaim[s] - endstack[s] | s in STOCKPILE ], input_order, indomain_min, complete) minimize makespan;
+:: int_search([ reclaim[s] - endstack[s] | s in STOCKPILE ], input_order, indomain_min, complete) minimize obj;
 
 %%%%%%
 
