@@ -55,7 +55,7 @@ constraint forall (s in STOCKPILE)
            ( stack[s] + stack_duration[s] = endstack[s] );
 
 constraint forall (s in STOCKPILE)
-           ( endstack[s] <= reclaim[s] );
+           ( endstack[s] = reclaim[s] );
 
 constraint forall (s in STOCKPILE)
            ( reclaim[s] + reclaim_duration[s] = finished[s] );
@@ -92,7 +92,7 @@ constraint forall (s in STOCKPILE)
 constraint forall (s in STOCKPILE)
   ( reclaim[s] >= arrival[ship[s]] );
 
-constraint forall (sh in SHIP)
+constraint forall (sh in SHIP where sum(s in STOCKPILE) (ship[s] = sh) > 1)
   ( cumulative([ reclaim[s] | s in STOCKPILE where ship[s] = sh ],
                [ reclaim_duration[s] | s in STOCKPILE where ship[s] = sh ],
                [ 1 | s in STOCKPILE where ship[s] = sh],
@@ -101,6 +101,7 @@ constraint forall (sh in SHIP)
 %%%%%% Stage D
 
 set of int: STOCKE = 1..ns+nr;
+array [STOCKE] of STOCKE: order = arg_sort([ if sd > ns then max(arrival) + 1 else arrival[ship[sd]] endif | sd in STOCKE ]);
 array [STOCKE] of var STOCKE: next;
 array [STOCKE] of var RECLAIMER: whiche;
 array [STOCKE] of var TIME: reclaime;
@@ -108,18 +109,16 @@ array [STOCKE] of var POSITION: westende;
 
 
 constraint forall (s in STOCKPILE)
-  ( reclaime[s] = reclaim[s] /\ westende[s] = westend[s] );
+  ( let { int: ss = order[s]; } in % works because dummies at the end, should use the inverse of order
+    reclaime[s] = reclaim[ss] /\ westende[s] = westend[ss] /\ whiche[s] = which[ss] );
 
 constraint alldifferent(next);
 
-constraint forall (s in STOCKPILE)
+constraint forall (s in STOCKE)
   ( whiche[s] = whiche[next[s]] );
 
 constraint forall (r in RECLAIMER)
   ( whiche[ns + r] = r );
-
-constraint forall (s in STOCKPILE)
-  ( which[s] = whiche[s] );
 
 constraint forall (s in STOCKPILE)
   ( reclaime[next[s]] >= finished[s] + (abs(westende[next[s]] - westende[s]) * reclaim_speed) );
@@ -135,14 +134,36 @@ var int: obj = sum(berth_time);
 
 %%%%%%
 
+constraint forall (sh in SHIP)
+  ( berth_time[sh] >= sum(s in STOCKPILE where ship[s] = sh) ( reclaim_duration[s] ) );
+
+constraint obj >= sum(reclaim_duration);
+
+%%%%%%
+
 % solve 
 % :: seq_search([
 %     int_search([makespan], input_order, indomain_min, complete),
 %    int_search(stack, dom_w_deg, indomain_max, complete),
 % ]) minimize makespan;
 
+%%%%%%
+
+array [STOCKE] of var 1..(ns+nr-1): nextForSearch;
+
+constraint forall (sd in STOCKE)
+  ( nextForSearch[sd] = ((next[sd] - sd + (ns + nr)) mod (ns + nr)) );
+
 solve
-:: int_search([ reclaim[s] - endstack[s] | s in STOCKPILE ], input_order, indomain_min, complete) minimize obj;
+:: seq_search([
+%int_search([ reclaim[s] - endstack[s] | s in STOCKPILE ], input_order, indomain_min, complete),
+% int_search(westend, first_fail, indomain_random, complete),
+% int_search(reclaim, dom_w_deg, indomain_min, complete),
+% int_search(berth_time, dom_w_deg, indomain_min, complete),
+% int_search(next, first_fail, indomain_random, complete),
+int_search(nextForSearch, input_order, indomain_min, complete),
+int_search(westend ++ reclaim, dom_w_deg, indomain_min, complete),
+]) minimize obj;
 
 %%%%%%
 
@@ -154,4 +175,7 @@ output
 ["reclaim  = ", show(reclaim), ";\n"] ++
 ["finish   = ", show(finished) , ";\n"] ++
 ["which    = ", show(which), ";\n"]
+++
+["obj      = ", show(obj), ";\n"] ++
+["next     = ", show(next), ";\n"]
 ;
