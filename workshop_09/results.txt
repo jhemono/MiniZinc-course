@@ -1,0 +1,20 @@
+First answer for all domain search for input_order variable selection :
+Min seems to produce the best first answer with the least amount of nodes.
+First answer for min domain search and all variable selection.
+  best first answer : first_fail -> 41 input_order -> 42
+  Number of nodes the same
+
+All solutions 1 minute: all variable selection for indomain_min:
+dom_w_deg proves instantly !
+first_fail also proves but in 30 seconds
+finding optimal without proving : input_order, smallest (all but largest actually)
+
+dom_w_deg, indomain_min -> vars:
+instant for makespan and only one solution, more nodes
+instant before but more nodes
+finds optimal without proving for e
+
+dom_w_deg, s -> domain:
+min is best, in terms of nodes
+followed closely by split
+all strategies prove instantly
