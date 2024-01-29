@@ -1,0 +1,15 @@
+output (((((((["westend  = ",show(westend),";\n"]++["eastend  = ",show(eastend),";\n"])++["stack    = ",show(stack),";\n"])++["endstack = ",show(endstack),";\n"])++["reclaim  = ",show(reclaim),";\n"])++["finish   = ",show(finished),";\n"])++["which    = ",show(which),";\n"])++["obj      = ",show(obj),";\n"])++["next     = ",show(next),";\n"];
+set of int: STOCKPILE = 1..8;
+array [STOCKPILE] of int: size = [4,3,2,5,4,2,1,4];
+set of int: SHIP = 1..4;
+array [STOCKPILE] of int: westend;
+array [STOCKPILE] of int: stack;
+array [STOCKPILE] of int: reclaim;
+array [STOCKPILE] of int: which;
+array [STOCKPILE] of int: finished;
+array [STOCKPILE] of int: endstack;
+array [STOCKPILE] of int: eastend = [westend[s]+size[s] | s in STOCKPILE, ];
+set of int: STOCKE = 1..11;
+array [STOCKE] of int: next;
+array [SHIP] of int: berth_time;
+int: obj = sum(berth_time);
